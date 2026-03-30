@@ -1,0 +1,4 @@
+interface:
+  display_name: "Set Up React Navigation Auth Flow"
+  short_description: "Build signed-in and signed-out navigation flows"
+  default_prompt: "Use $setup-auth-flow to set up an authentication flow in React Navigation."

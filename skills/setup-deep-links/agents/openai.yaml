@@ -1,0 +1,5 @@
+interface:
+  display_name: "Set Up React Navigation Deep Links"
+  short_description: "Configure Expo or native linking for React Navigation"
+  default_prompt: "Use $setup-deep-links to set up React Navigation deep linking, choosing the Expo or native guide and the static or dynamic linking guide as needed."
+

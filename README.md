@@ -10,6 +10,12 @@ This repository contains reusable skills for agent clients that support the Agen
   Migrate React Navigation navigators from dynamic JSX config to static config, with version-specific guidance for React Navigation 7.x and 8.x.
 - `upgrade-react-navigation`
   Upgrade React Navigation from 6.x to 7.x or from 7.x to 8.x, with version-specific migration guides.
+- `setup-deep-links`
+  Set up deep linking for Expo or bare apps, with separate guidance for static and dynamic navigation.
+- `setup-typescript`
+  Set up React Navigation TypeScript types for static 7.x, static 8.x, or dynamic navigators.
+- `setup-auth-flow`
+  Set up signed-in and signed-out navigation flows for static or dynamic navigation.
 
 ## Compatibility
 

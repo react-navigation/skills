@@ -1,0 +1,4 @@
+interface:
+  display_name: "Set Up React Navigation TypeScript"
+  short_description: "Type React Navigation static and dynamic navigators"
+  default_prompt: "Use $setup-typescript to set up React Navigation TypeScript for the current navigator style and React Navigation major version."
