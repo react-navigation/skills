@@ -1,7 +1,6 @@
 ---
 name: migrate-to-static-config
-description: Migrate React Navigation navigators from dynamic JSX config to static config.
-compatibility: Designed for Claude Code, Codex, and similar Agent Skills clients working in React Navigation repositories.
+description: Migrate React Navigation navigators from dynamic component based config to static object based config.
 ---
 
 # Migrating to Static Config
