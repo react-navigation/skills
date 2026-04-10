@@ -12,10 +12,17 @@ Convert React Navigation navigators from JSX-based dynamic setup to static confi
 2. The navigator's screen list is static and not built at runtime.
 3. The navigator doesn't use dynamic variables or props that are not available in static config.
 
+## Official reference
+
+Fetch [llms.txt](https://reactnavigation.org/llms-8.x.txt) for a list of documentation links. During the migration, refer to the official documentation for API reference for the latest React Navigation 8.x versions.
+
 ## Prerequisites
 
 - The project is using React Navigation 8.x.
-- The versions of `@react-navigation` packages are up-to-date with the published versions.
+- Before migrating any navigator, update every `@react-navigation/*` package in `package.json` to the latest published 8.x version and install those updates. Do not start the migration against stale package versions.
+  - Run `npm view package-name@next version` for each `@react-navigation` package in `package.json` to check the latest version, for example `npm view @react-navigation/native@next version`.
+  - Update every installed `@react-navigation/*` package, not only `@react-navigation/native`.
+  - The `.with()` guidance below assumes this package refresh is complete.
 
 ## Structure
 
@@ -30,10 +37,11 @@ Convert React Navigation navigators from JSX-based dynamic setup to static confi
 
 ### 1. Identify static candidates
 
-A navigator is a static candidate if all its screens are known at build time. Look for:
+A navigator is a static candidate if all its screens are known at build time. Classify it before editing code:
 
-- **Convertible**: fixed `<Stack.Screen>` elements, conditional rendering based on auth or feature flags (use `if` hooks), render callbacks passing extra props (use React context), navigators wrapped in providers or components using hooks for navigator-level props (use `.with()`)
-- **Not convertible**: screen list built from runtime data such as mapping over an API response, screens added or removed based on values that can't be expressed as a hook returning a boolean.
+- **Direct static migration**: fixed `<Stack.Screen>` elements, nested navigators with static screen lists, and conditional rendering based on auth or feature flags that can move to `if` hooks.
+- **Static migration with adaptation**: render callbacks passing extra props (move data to React context), navigators wrapped in providers or components using hooks for navigator-level props (use `.with()` after updating packages), screens using `getComponent` lazy loading (migrate to `screen: React.lazy(() => import('./Screen'))`), factory functions generating multiple navigators, and custom navigator factories or custom routers that follow the official React Navigation navigator API.
+- **Keep dynamic**: screen lists built from runtime data such as mapping over an API response, or screens added and removed based on values that cannot be expressed as a hook returning a boolean.
 
 ### 2. Convert navigator JSX to static config
 
@@ -410,6 +418,53 @@ const MyStack = createNativeStackNavigator({
 });
 ```
 
+#### Migrating `getComponent` lazy loading
+
+Static config uses a `screen` component and doesn't support `getComponent`. To migrate screens using `getComponent`, create a utility function as follows:
+
+```tsx
+const lazyScreen = <T extends React.ComponentType<any>>(
+  getComponent: () => T | { default: T },
+) => {
+  function LazyScreen(props: React.ComponentProps<T>) {
+    const LazyComponent = getComponent();
+
+    if ('default' in LazyComponent) {
+      return <LazyComponent.default {...props} />;
+    }
+
+    return <LazyComponent {...props} />;
+  }
+
+  return LazyScreen;
+};
+```
+
+Then replace `getComponent` with `screen: lazyScreen<typeof import('./Screen')['default']>(() => require('./Screen'))`.
+
+Before:
+
+```tsx
+<Stack.Screen
+  name="Settings"
+  getComponent={() => require('./SettingsScreen').default}
+/>
+```
+
+After:
+
+```tsx
+const MyStack = createNativeStackNavigator({
+  screens: {
+    Settings: createNativeStackScreen({
+      screen: lazyScreen<typeof import('./SettingsScreen')['default']>(
+        () => require('./SettingsScreen'),
+      ),
+    }),
+  },
+});
+```
+
 ### 7. Migrate screen-level linking
 
 Use screen-level `linking` to replace the old root `linking.config.screens` structure.
@@ -755,13 +810,16 @@ Apps can combine both APIs when needed:
 
 ## Review
 
-1. No `NativeStackScreenProps`, `BottomTabScreenProps`, or custom screen-prop aliases remain. Use `useNavigation('ScreenName')` and `useRoute('ScreenName')` for access, and `StaticScreenProps` only when params need explicit typing.
-2. `RootNavigator` augmentation in `@react-navigation/core` lives next to the root static navigator.
-3. `createStaticNavigation` replaces `NavigationContainer`.
-4. Root `linking` contains container-level settings such as `prefixes` and `enabled`. Screen paths live in screen-level `linking`.
-5. Linking config is present only where custom paths or params are required. Defaults are kebab-case.
-6. No extra props are passed to screens. React context is used instead.
-7. No hand-written param lists remain unless derived via `StaticParamList`.
-8. No hooks are called directly in `screenOptions`, `options`, or `listeners` callbacks.
-9. Loading or boot UI lives outside `<Navigation>`.
-10. No circular type references or obsolete shared type files remain from the old dynamic setup.
+1. All `@react-navigation/*` packages were updated to the latest published 8.x versions before migration.
+2. No `NativeStackScreenProps`, `BottomTabScreenProps`, or custom screen-prop aliases remain. Use `useNavigation()` for access, the screen `route` prop when available, and `StaticScreenProps` for params.
+3. `RootParamList` augmentation in `ReactNavigation` lives next to the root static navigator.
+4. `createStaticNavigation` replaces `NavigationContainer`.
+5. Root `linking` contains container-level settings such as `prefixes` and `enabled`. Screen paths live in screen-level `linking`.
+6. Linking config is present only where custom paths or params are required. Defaults are kebab-case.
+7. Every screen with params uses `StaticScreenProps`. Screen-level `linking` is used for URL parsing and serialization.
+8. No extra props are passed to screens. React context is used instead.
+9. Any previous `getComponent` screens now use custom utility
+10. No hand-written param lists remain unless derived via `StaticParamList`.
+11. No hooks are called directly in `screenOptions`, `options`, or `listeners` callbacks.
+12. Loading or boot UI lives outside `<Navigation>`.
+13. No circular type references or obsolete shared type files remain from the old dynamic setup.

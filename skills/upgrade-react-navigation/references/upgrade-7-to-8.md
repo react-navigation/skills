@@ -24,6 +24,10 @@ Upgrade React Navigation to 8.x and handle the required breaking changes.
 - If the repo uses Expo, ensure development builds are used. Verify that either `expo-dev-client` is installed or the start workflow uses `expo start --dev-client`.
 - If the repo uses TypeScript, set `moduleResolution: 'bundler'` and enable either `strict: true` or `strictNullChecks: true`.
 
+## Official reference
+
+Fetch [llms.txt](https://reactnavigation.org/llms-8.x.txt) for a list of documentation links. During the migration, refer to the official documentation for API reference for the latest React Navigation 8.x versions.
+
 ## Areas to review
 
 - Root navigator typing, common hook usage, static screen config objects, and custom navigator typings
