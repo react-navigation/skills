@@ -2,27 +2,18 @@
 
 Use this file only when `@react-navigation/native` is on `7.x`.
 
-## Goal
-
-Convert React Navigation navigators from JSX-based dynamic setup to static configuration while preserving behavior, typing, and deep links.
-
-## When
-
-1. You are migrating screens to the static API in React Navigation 7.x.
-2. The navigator's screen list is static and not built at runtime.
-3. The navigator doesn't use dynamic variables or props that are not available in static config.
-
 ## Prerequisites
 
 - The project is using React Navigation 7.x.
-- Before migrating any navigator, update every `@react-navigation/*` package in `package.json` to the latest published 7.x version and install those updates. Do not start the migration against stale package versions.
+- Before migrating any navigator, ensure `@react-navigation/*` packages in `package.json` are updated to the latest published 7.x version:
   - Run `npm view package-name@latest version` for each `@react-navigation` package in `package.json` to check the latest version, for example `npm view @react-navigation/native@latest version`.
-  - Update every installed `@react-navigation/*` package, not only `@react-navigation/native`.
-  - The `.with()` guidance below assumes this package refresh is complete.
+  - If the versions are not up-to-date, stop and ask whether to update them.
+  - Once confirmed, update the versions in `package.json` and install them.
+  - Do not proceed with the migration unless versions are updated.
 
 ## Official reference
 
-Fetch [llms.txt](https://reactnavigation.org/llms.txt) for a list of documentation links. During the migration, refer to the official documentation for API reference for the latest React Navigation 7.x versions.
+Fetch [llms.txt](https://reactnavigation.org/llms.txt) for a list of documentation links. During the migration, find the relevant link based on the topic and refer to the official docs when needed.
 
 ## Structure
 
@@ -39,11 +30,22 @@ Fetch [llms.txt](https://reactnavigation.org/llms.txt) for a list of documentati
 
 A navigator is a static candidate if all its screens are known at build time. Classify it before editing code:
 
-- **Direct static migration**: fixed `<Stack.Screen>` elements, nested navigators with static screen lists, and conditional rendering based on auth or feature flags that can move to `if` hooks.
-- **Static migration with adaptation**: render callbacks passing extra props (move data to React context), navigators wrapped in providers or components using hooks for navigator-level props (use `.with()` after updating packages), screens using `getComponent` lazy loading, factory functions generating multiple navigators, and custom navigator factories or custom routers that follow the official React Navigation navigator API.
-- **Keep dynamic**: screen lists built from runtime data such as mapping over an API response, or screens added and removed based on values that cannot be expressed as a hook returning a boolean, navigators whose parent navigator needs to stay dynamic.
+- **Direct static migration**
+  - A fixed set of `<Stack.Screen>`, `<Tabs.Screen>`, or similar screen elements declared explicitly in JSX
+  - Nested navigators whose own screen lists are already static
+  - Conditional screens or groups controlled by auth state, feature flags, or other boolean conditions
+  - Navigator-level `screenOptions`, `initialRouteName`, and group options that do not depend on component-local props or hooks
+  - Screen options, params, IDs, and linking config that are already known in module scope
+- **Static migration with adaptation**
+  - Render callbacks used only to pass extra props or wrappers to a screen
+  - Navigators wrapped in providers or components that use hooks to compute navigator-level props
+  - Factory functions that generate navigators from a fixed screen list or a fixed set of options
+- **Keep dynamic**
+  - Screen lists built from runtime data, such as mapping over API responses, server-driven config, or data not known statically
+  - Navigation structure that depends on async data before the full route tree can be known
+  - Child navigators whose parent navigator must stay dynamic and cannot represent the child as a static screen entry
 
-Start the migration from the root navigator and work downwards. If a child navigator cannot be migrated to static config, do not migrate its children navigators.
+Start the migration from the root navigator and work downwards. If the root navigator is not a static candidate, abort the migration unless the user explicitly wants to keep the root dynamic and migrate only nested navigators.
 
 ### Identify custom navigators
 
@@ -115,20 +117,7 @@ type Props = DefaultNavigatorOptions<
   MyNavigationConfig;
 
 function TabNavigator({ tabBarStyle, contentStyle, ...rest }: Props) {
-  const { state, navigation, descriptors, NavigationContent } =
-    useNavigationBuilder<
-      TabNavigationState<ParamListBase>,
-      TabRouterOptions,
-      TabActionHelpers<ParamListBase>,
-      MyNavigationOptions,
-      MyNavigationEventMap
-    >(TabRouter, rest);
-
-  return (
-    <NavigationContent>
-      {/* Implementation of the navigator UI using state, navigation, and descriptors */}
-    </NavigationContent>
-  );
+  /* implementation of the navigator */
 }
 
 // Types required for type-checking the navigator
@@ -181,6 +170,10 @@ const MyNavigator = createMyNavigator({
   },
 });
 ```
+
+The actual implementation of the navigator is not relevant to the migration. The only relevant part is the navigator function (e.g. `createMyNavigator`) and whether it accepts configuration object.
+
+If it doesn't accept a config object, update it to use the `createNavigatorFactory` and navigator API patterns shown above before migration. If it already uses the same patterns, there are no changes needed to the navigator implementation for static config migration.
 
 ### Convert navigator JSX to static config
 
@@ -484,9 +477,7 @@ const MyStack = createNativeStackNavigator({
 }).with(({ Navigator }) => {
   const route = useRoute();
 
-  return (
-    <Navigator screenOptions={{ title: route.params.title }} />
-  );
+  return <Navigator screenOptions={{ title: route.params.title }} />;
 });
 ```
 
@@ -553,9 +544,13 @@ const MyStack = createNativeStackNavigator({
 });
 ```
 
-#### Replacing render callbacks with context
+#### Convert render callbacks for screens
 
-Static screens cannot receive extra props via render callbacks. Move the data to React context and provide it via `.with()`.
+Static config doesn't support render callbacks on screens.
+
+For additional props passed to the screen component, move the data to React context and provide it via `.with()`.
+
+Passing additional props via context:
 
 Before:
 
@@ -591,9 +586,88 @@ const MyStack = createNativeStackNavigator({
 });
 ```
 
+For wrappers around the screen component, move the wrapper to the screen's `layout`.
+
+Before:
+
+```tsx
+<Stack.Screen name="Profile">
+  {(props) => (
+    <SomeWrapper>
+      <ProfileScreen {...props} />
+    </SomeWrapper>
+  )}
+</Stack.Screen>
+```
+
+After:
+
+```tsx
+const MyStack = createNativeStackNavigator({
+  screens: {
+    Profile: {
+      screen: ProfileScreen,
+      layout: ({ children }) => <SomeWrapper>{children}</SomeWrapper>,
+    },
+  },
+});
+```
+
+For refs passed to the screen component, use context and wrap the screen in a component that forwards the ref.
+
+Before:
+
+```tsx
+<Stack.Screen name="Profile">
+  {(props) => <ProfileScreen {...props} ref={profileRef} />}
+</Stack.Screen>
+```
+
+After:
+
+```tsx
+const MyStack = createNativeStackNavigator({
+  screens: {
+    Profile: {
+      screen: () => {
+        const profileRef = React.useContext(ProfileRefContext);
+
+        return <ProfileScreen ref={profileRef} />;
+      },
+    },
+  },
+}).with(({ Navigator }) => {
+  const profileRef = React.useRef();
+
+  return (
+    <ProfileRefContext.Provider value={profileRef}>
+      <Navigator />
+    </ProfileRefContext.Provider>
+  );
+});
+```
+
+If multiple of these patterns are used on the same screen, use appropriate combinations of context and layout.
+
 #### Migrating `getComponent` lazy loading
 
-Static config uses a `screen` component and doesn't support `getComponent`. Migrate them to use `React.lazy` with `React.Suspense`.
+Static config uses a `screen` component and doesn't support `getComponent`. Use a custom utility to lazily render the screen:
+
+```tsx
+const lazyScreen = <T extends React.ComponentType<any>>(
+  getComponent: () => T,
+) => {
+  return function LazyScreen(props: React.ComponentProps<T>) {
+    const Component = getComponent();
+
+    return <Component {...props} />;
+  };
+};
+```
+
+Place this utility in a shared file such as `utils/lazyScreen.ts` following the pattern of other shared utilities in the codebase.
+
+Then, replace `getComponent` with the lazy screen:
 
 Before:
 
@@ -608,12 +682,11 @@ After:
 
 ```tsx
 const MyStack = createNativeStackNavigator({
-  screenLayout: ({ children }) => (
-    <React.Suspense fallback={<Loading />}>{children}</React.Suspense>
-  ),
   screens: {
     Settings: {
-      screen: React.lazy(() => import('./SettingsScreen')),
+      screen: lazyScreen<typeof import('./SettingsScreen').default>(
+        () => require('./SettingsScreen').default,
+      ),
     },
   },
 });
@@ -808,8 +881,6 @@ The runtime parsing comes from `linking`. The compile-time param type comes from
 
 Avoid `any`, non-null assertions, and `as` assertions.
 
-#### Full before/after example
-
 Before:
 
 ```tsx
@@ -964,7 +1035,104 @@ Keep screen path details on individual screens.
 
 The `Navigation` component returned by `createStaticNavigation` cannot take a full `linking.config` object. Put per-screen paths in screen-level `linking`, and use the root `linking` prop only for container-level settings and root-level linking options.
 
-The `Navigation` component accepts `linking`, `theme`, `ref`, `onReady`, `onStateChange`, `onUnhandledAction`, and `documentTitle`.
+Only configuration from the `screens` property needs to be moved to screen-level `linking`. Container-level linking options such as `prefixes`, custom `getStateFromPath`, `getPathFromState` and any other properties can still be passed to the root-level `linking` prop.
+
+All the props that were previously passed to `NavigationContainer` such as `theme`, `fallback`, and `onReady` can be passed to the `Navigation` component without changes except for `children`, and require changes to `linking` as described above.
+
+## Mixing Static and Dynamic APIs
+
+Use mixed static/dynamic trees only as a fallback when full static migration is not possible.
+
+Prefer a static root navigator. Once any part of the tree remains dynamic, automatic linking and automatic TypeScript types stop at that boundary. Handle linking and typing for the mixed boundary manually.
+
+### Static root navigator, dynamic nested navigator
+
+Use this fallback when a parent navigator can be migrated but a nested navigator cannot.
+
+- Keep the parent navigator static
+- Keep the dynamic navigator under a screen in the static parent navigator
+- Define linking for the dynamic child screens manually in the parent screen's `linking.screens`
+- Type the parent screen params with `StaticScreenProps<NavigatorScreenParams<...>>`
+
+```tsx
+type FeedParamList = {
+  Latest: undefined;
+  Popular: undefined;
+};
+
+type FeedScreenProps = StaticScreenProps<
+  NavigatorScreenParams<FeedParamList>
+>;
+
+function FeedScreen(_: FeedScreenProps) {
+  return (
+    <Tab.Navigator>
+      <Tab.Screen name="Latest" component={LatestScreen} />
+      <Tab.Screen name="Popular" component={PopularScreen} />
+    </Tab.Navigator>
+  );
+}
+
+const RootStack = createNativeStackNavigator({
+  screens: {
+    Home: HomeScreen,
+    Feed: createNativeStackScreen({
+      screen: FeedScreen,
+      linking: {
+        path: 'feed',
+        screens: {
+          Latest: 'latest',
+          Popular: 'popular',
+        },
+      },
+    }),
+  },
+});
+```
+
+### Dynamic root navigator, static nested navigator
+
+Use this fallback only when a parent navigator cannot be migrated and must remain dynamic.
+
+- Migrate the nested navigator to the static API
+- Use `.getComponent()` on the static navigator to get a screen component for the dynamic parent
+- Derive params with `StaticParamList<typeof StaticNavigator>` and use `NavigatorScreenParams<...>` in the dynamic parent's param list
+- Generate linking config with `createPathConfigForStaticNavigation(StaticNavigator)` and place it in:
+  - The `linking.config` of `NavigationContainer` if the parent dynamic navigator is the root navigator
+  - The `linking.screens` of the screen in static grandparent navigator of the dynamic parent if the parent dynamic navigator is nested
+
+```tsx
+const FeedTabs = createBottomTabNavigator({
+  screens: {
+    Latest: LatestScreen,
+    Popular: PopularScreen,
+  },
+});
+
+const FeedScreen = FeedTabs.getComponent();
+
+type FeedTabsParamList = StaticParamList<typeof FeedTabs>;
+
+type RootStackParamList = {
+  Home: undefined;
+  Feed: NavigatorScreenParams<FeedTabsParamList>;
+};
+
+const feedScreens = createPathConfigForStaticNavigation(FeedTabs);
+
+const linking = {
+  prefixes: ['https://example.com', 'example://'],
+  config: {
+    screens: {
+      Home: '',
+      Feed: {
+        path: 'feed',
+        screens: feedScreens,
+      },
+    },
+  },
+};
+```
 
 ### Gotchas
 
@@ -990,14 +1158,7 @@ options: () => ({
 
 - Cannot use React hooks such as `useTheme()` directly in `options` or `listeners` callbacks. Use callback arguments such as `theme` instead. `React.use()` (React 19+) can read context in `options` callbacks but may trigger ESLint warnings.
 - The screen list is static. Screens cannot be added or removed at runtime. Use `if` hooks for conditional rendering.
-- No render callbacks or extra props on screens. Use React context instead.
-
-## Mixing Static and Dynamic
-
-Apps can combine both APIs when needed:
-
-- When migrating incrementally, start from the root navigator since it drives typing. Keep leaf navigators dynamic until converted. Static navigators nested inside dynamic ones lose many benefits such as type inference and auto linking.
-- When a leaf navigator genuinely needs runtime-dynamic screens that `if` cannot express.
+- No render callbacks on screens. Move extra props to React context and wrappers to `layout`.
 
 ## Review
 
@@ -1008,7 +1169,7 @@ Apps can combine both APIs when needed:
 5. Root `linking` contains container-level settings such as `prefixes` and `enabled`. Screen paths live in screen-level `linking`.
 6. Linking config is present only where custom paths or params are required. Defaults are kebab-case.
 7. Every screen with params uses `StaticScreenProps`. Screen-level `linking` is used for URL parsing and serialization.
-8. No extra props are passed to screens. React context is used instead.
+8. No render callbacks remain on screens. Extra props use React context and wrappers use `layout`.
 9. Any previous `getComponent` screens now use custom utility
 10. No hand-written param lists remain unless derived via `StaticParamList`.
 11. No hooks are called directly in `screenOptions`, `options`, or `listeners` callbacks.
