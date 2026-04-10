@@ -40,6 +40,18 @@ Use this order of preference:
 
 Do not treat the absence of an explicit example in this skill as a blocker. Use the guidance here to derive the appropriate migration for the local code.
 
+## When to ask for clarification
+
+Inspect the local code first.
+
+If, after reading the relevant navigator and its immediate callers, you cannot explain how the final screen structure, linking behavior, and preserved behavior map to the static API with high confidence, pause and ask the user before editing code.
+
+Ask for clarification when:
+
+- Part of the behavior is hidden behind local abstractions.
+- Migrating would require assumptions about which behavior is intentional.
+- It is unclear whether related helpers should be updated as part of the same change.
+
 ## References
 
 Check `@react-navigation/native` in `package.json` first.
