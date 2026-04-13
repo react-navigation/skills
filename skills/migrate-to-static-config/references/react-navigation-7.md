@@ -42,8 +42,11 @@ A navigator is a static candidate if all its screens are known at build time. Cl
   - Factory functions that generate navigators from a fixed screen list or a fixed set of options
 - **Keep dynamic**
   - Screen lists built from runtime data, such as mapping over API responses, server-driven config, or data not known statically
+  - Dynamic properties on `<Screen>` except `options` and `listeners`, such as `initialParams` and `getId`
   - Navigation structure that depends on async data before the full route tree can be known
   - Child navigators whose parent navigator must stay dynamic and cannot represent the child as a static screen entry
+
+"Keep dynamic" always takes precedence.
 
 Start the migration from the root navigator and work downwards. If the root navigator is not a static candidate, abort the migration unless the user explicitly wants to keep the root dynamic and migrate only nested navigators.
 
@@ -186,7 +189,10 @@ const Stack = createNativeStackNavigator();
 
 function MyStack() {
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Navigator
+      initialRouteName="Home"
+      screenOptions={{ headerShown: false }}
+    >
       <Stack.Screen name="Home" component={HomeScreen} />
       <Stack.Screen
         name="Profile"
@@ -202,7 +208,10 @@ After:
 
 ```tsx
 const MyStack = createNativeStackNavigator({
-  screenOptions: { headerShown: false },
+  initialRouteName: 'Home',
+  screenOptions: {
+    headerShown: false,
+  },
   screens: {
     Home: HomeScreen,
     Profile: {
@@ -213,37 +222,11 @@ const MyStack = createNativeStackNavigator({
 });
 ```
 
-Full screen config shape:
-
-```tsx
-const MyStack = createNativeStackNavigator({
-  screens: {
-    Example: {
-      screen: ScreenComponent,
-      options: ({ route, navigation, theme }) => ({
-        title: route.name,
-      }),
-      listeners: ({ route, navigation }) => ({
-        focus: () => {},
-      }),
-      initialParams: {},
-      getId: ({ params }) => params.id,
-      linking: {
-        path: 'pattern/:id',
-        parse: { id: Number },
-        stringify: { id: (value) => String(value) },
-        exact: true,
-      },
-      if: useConditionHook,
-      layout: ({ children }) => children,
-    },
-  },
-});
-```
-
 Shorthand (component only, no config): `ScreenName: ScreenComponent`
 
 Nested static navigator: `ScreenName: AnotherStaticNavigator`
+
+All props on `<Navigator>` such as `initialRouteName`, `screenOptions` etc. become properties on the config object passed to `createXNavigator`. Props on `<Screen>` become properties on the screen config object. If a screen doesn't need a config object, use the shorthand form.
 
 ### Convert nested navigators
 
@@ -417,6 +400,8 @@ const RootStack = createNativeStackNavigator({
 
 If the dynamic navigator is rendered in a component that uses hooks for navigator-level behavior, or has wrappers around the mounted navigator, use `.with()` to provide this wrapper. This applies to navigator-level props such as `initialRouteName`, `backBehavior`, `screenOptions`, and `screenListeners` that are derived dynamically.
 
+The `.with()` method takes a React component and can use hooks, render providers, wrap the navigator in additional components, return early etc.
+
 #### Wrapping with a provider and dynamic props and options
 
 Before:
@@ -452,6 +437,8 @@ const MyStack = createNativeStackNavigator({
   );
 });
 ```
+
+If `screenOptions` or `screenListeners` are provided both in the static config and in `.with()`, they will be shallow merged automatically.
 
 #### Using props based on parent route
 
@@ -1060,9 +1047,7 @@ type FeedParamList = {
   Popular: undefined;
 };
 
-type FeedScreenProps = StaticScreenProps<
-  NavigatorScreenParams<FeedParamList>
->;
+type FeedScreenProps = StaticScreenProps<NavigatorScreenParams<FeedParamList>>;
 
 function FeedScreen(_: FeedScreenProps) {
   return (
