@@ -26,7 +26,13 @@ Upgrade React Navigation to 8.x and handle the required breaking changes.
 
 ## Official reference
 
-Fetch [llms.txt](https://reactnavigation.org/llms-8.x.txt) for a list of documentation links. During the migration, refer to the official documentation for API reference for the latest React Navigation 8.x versions.
+Fetch [llms.txt](https://reactnavigation.org/llms-8.x.txt) for a table of contents of all React Navigation 8.x documentation. During the upgrade, when you encounter an API not fully covered in this reference, find the relevant link in llms.txt and fetch that specific page. Common mappings:
+- Stack navigator APIs -> fetch "Stack Navigator" page
+- Custom navigators or routers -> fetch "Custom navigators" and "Custom routers" pages
+- Screen API changes -> fetch "Screen" page
+- TypeScript changes -> fetch "TypeScript" page
+
+**Note:** The 8.x documentation pages from llms.txt may still reference removed APIs (e.g., `freezeOnBlur` in option lists, `NavigatorID` in type examples) if the docs have not been fully updated. When the skill reference and the fetched docs disagree, follow the skill reference for breaking changes — it is based on the actual 8.x source code. Use the fetched docs primarily to confirm API stability (i.e., that an API is still present), not to confirm removal.
 
 ## Areas to review
 
@@ -34,6 +40,7 @@ Fetch [llms.txt](https://reactnavigation.org/llms-8.x.txt) for a list of documen
 - Bottom tabs, custom tab bars, tab headers, and image-based tab icons
 - Navigation APIs affected by removed navigator ids, `getParent(id)`, `navigateDeprecated`, `navigationInChildEnabled`, `setParams` with `backBehavior="fullHistory"`, and `getId` behavior changes
 - Removed lifecycle and layout props such as detach/freeze options, `Header` layout props, and `getDefaultHeaderHeight`
+- `getComponent` lazy loading: still supported in 8.x for both static and dynamic config. No migration needed for `getComponent` usage itself, but verify compatibility with any custom wrappers.
 - Linking and static navigation config, including `prefixes`, `enabled`, `UNSTABLE_router`, and `UNSTABLE_routeNamesChangeBehavior`
 - Direct `@react-navigation/elements` usage, removed exports, and direct `Header` rendering
 
@@ -126,7 +133,83 @@ const Stack = createNativeStackNavigator({
 
 #### Custom navigators need updated overloads
 
-If the repo defines a custom navigator, update its `createNavigatorFactory` overloads and any local navigator wrapper typings.
+If the repo defines custom navigators using `useNavigationBuilder` and `createNavigatorFactory`, update them for 8.x:
+
+**`NavigatorID` generic removal:**
+The `NavigatorID` generic type parameter is removed from navigator types. Update `createNavigatorFactory` overloads, `NavigationProp` types, and `DefaultNavigatorOptions` to remove the `NavigatorID` generic (or the `string | undefined` slot it occupied).
+
+Before (7.x):
+
+```tsx
+type MyNavigationProp<
+  ParamList extends ParamListBase,
+  RouteName extends keyof ParamList = keyof ParamList,
+  NavigatorID extends string | undefined = undefined,
+> = NavigationProp<
+  ParamList,
+  RouteName,
+  NavigatorID,
+  StackNavigationState<ParamList>,
+  MyNavigationOptions,
+  MyNavigationEventMap
+>;
+
+type Props = DefaultNavigatorOptions<
+  ParamListBase,
+  string | undefined,
+  StackNavigationState<ParamListBase>,
+  MyNavigationOptions,
+  MyNavigationEventMap,
+  MyNavigationProp<ParamListBase>
+> & StackRouterOptions;
+```
+
+After (8.x):
+
+```tsx
+type MyNavigationProp<
+  ParamList extends ParamListBase,
+  RouteName extends keyof ParamList = keyof ParamList,
+> = NavigationProp<
+  ParamList,
+  RouteName,
+  StackNavigationState<ParamList>,
+  MyNavigationOptions,
+  MyNavigationEventMap
+>;
+
+type Props = DefaultNavigatorOptions<
+  ParamListBase,
+  StackNavigationState<ParamListBase>,
+  MyNavigationOptions,
+  MyNavigationEventMap,
+  MyNavigationProp<ParamListBase>
+> & StackRouterOptions;
+```
+
+Remove the `NavigatorID` generic parameter and the `string | undefined` slot it occupied from `NavigationProp`, `DefaultNavigatorOptions`, and the factory function's generic parameter list. Update `NavigatorTypeBagBase`, `TypedNavigator`, and `StaticConfig` usages similarly — drop any generic slot that previously held `NavigatorID`.
+
+If the codebase has a standalone `NavigationProp` type alias with 3+ generics (e.g., `NavigationProp<ParamList, RouteName, NavigatorID>`), update it to 2 generics: `NavigationProp<ParamList, RouteName>`. The same applies to `RouteProp` and screen prop utility types.
+
+**`id` in `useNavigationBuilder` options:**
+If the navigator passes `id` to `useNavigationBuilder` options, remove it. Navigator `id` is no longer supported.
+
+**`useNavigationBuilder` return values:**
+Check if the navigator destructures return values from `useNavigationBuilder`. The `describe` function and `NavigationContent` wrapper may have changed signatures. Fetch the "Custom navigators" page from llms.txt to verify the current return type.
+
+**Generic parameter count:** The number of generic type parameters on `useNavigationBuilder` may have changed between 7.x and 8.x. If the codebase passes 6+ generics to `useNavigationBuilder`, compare against the 8.x type definition in `node_modules/@react-navigation/core` after upgrading. Remove or update any generic slots that no longer exist (typically the `NavigatorID` slot).
+
+**Screen options transform (3rd argument):** If the codebase passes a third argument to `useNavigationBuilder` (a screen options transform function, e.g., `convertToWebNavigationOptions`), verify that this overload still exists in 8.x. This is an advanced pattern not covered by the official docs — inspect the `useNavigationBuilder` type definition directly after upgrading.
+
+**Direct `StackView` rendering:**
+If a custom navigator renders `StackView` (or other view components) directly with `state`, `descriptors`, `navigation`, and `describe` props, verify that these props are still accepted. Fetch the relevant navigator's API page from llms.txt to check for prop changes.
+
+`StackView` is not documented as a public API in the official docs. If the relevant navigator's API page from llms.txt does not document `StackView` props, inspect its TypeScript definition directly after upgrading: check `node_modules/@react-navigation/stack/src/views/Stack/StackView.tsx` (or the compiled `.d.ts`) to verify the prop interface. Pay particular attention to the `describe` prop — it may have changed signature or been renamed.
+
+**Custom router method signatures:**
+If the codebase extends `StackRouter`, `TabRouter`, or other built-in routers, verify that `getStateForAction`, `getInitialState`, `getRehydratedState`, and `RouterConfigOptions` types are unchanged. Fetch the "Custom routers" page from llms.txt for details.
+
+When the reference does not provide enough detail for a specific custom navigator pattern, use llms.txt to fetch the relevant official documentation page and derive the changes.
 
 ### 3. Update navigator behavior and option APIs
 
@@ -259,6 +342,8 @@ Use the new screen option instead:
 - `inactiveBehavior: 'none'`
 
 Default behavior is now `pause`.
+
+If the codebase implements custom detach or screen-persistence logic (e.g., a custom `dontDetachScreen` route property or a `persistentScreens` navigator option), verify how `inactiveBehavior` interacts with that logic. The new default `pause` behavior may conflict with custom detach decisions. Test that persistent screens remain mounted and non-persistent screens are correctly paused or unmounted.
 
 #### Rename and remove the affected navigator options
 
