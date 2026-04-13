@@ -1,6 +1,7 @@
 ---
 name: migrate-to-static-config
-description: Migrate React Navigation navigators from dynamic component based config to static object based config.
+description: "Use when converting React Navigation navigators from JSX-based dynamic config to the static object-based config API. Covers createXNavigator({screens}), .with() wrappers, custom navigators using useNavigationBuilder, lazy loading migration, auth flows, linking, and type updates."
+compatibility: "React Navigation 7.x+"
 ---
 
 # Migrating to Static Config
@@ -12,6 +13,14 @@ Convert React Navigation navigators from JSX-based dynamic setup to static confi
 ## When to use
 
 You are migrating screens from Dynamic API to the Static API in React Navigation.
+
+Triggering symptoms:
+
+- Navigator files use `<Stack.Navigator>`, `<Tab.Navigator>`, or similar JSX patterns with `<Stack.Screen>` children
+- The codebase has a `NavigationContainer` wrapping a component-based root navigator
+- Hand-written `ParamList` types are maintained alongside navigator definitions
+- A centralized `linking.config.screens` object duplicates the navigator tree structure
+- `getComponent` or render callbacks are used on `Screen` elements
 
 ## Adaptation policy
 
@@ -51,6 +60,17 @@ Ask for clarification when:
 - Part of the behavior is hidden behind local abstractions.
 - Migrating would require assumptions about which behavior is intentional.
 - It is unclear whether related helpers should be updated as part of the same change.
+
+## Environment conflicts
+
+Project-level instructions (CLAUDE.md, .cursorrules, etc.) may restrict operations this skill requires. Handle conflicts as follows:
+
+- **Package updates blocked** -- If project instructions prohibit modifying package.json, skip the prerequisite version check. Note which packages may need updating and inform the user, but proceed with migration guidance using current versions.
+- **Code modification restricted** -- If instructions restrict editing navigation files, produce the migration as a diff or structured plan instead of applying changes directly. Explain what would change and why.
+- **Tool execution restricted** -- If instructions prohibit running npm/yarn commands, skip automated checks. Document which checks the user should run manually.
+- **Conflicting conventions** -- If project conventions conflict with this skill's patterns (e.g., "always use dynamic config"), flag the conflict to the user and ask how to proceed. Do not silently follow either instruction.
+
+When in doubt, inform the user of the conflict and let them decide. Do not silently skip steps or silently override project instructions.
 
 ## References
 
