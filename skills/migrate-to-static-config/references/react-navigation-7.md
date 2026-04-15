@@ -12,6 +12,7 @@ Use this file only when `@react-navigation/native` is on `7.x`.
 ## Official reference
 
 Fetch [llms.txt](https://reactnavigation.org/llms.txt) for a table of contents of all React Navigation documentation. During the migration, when you encounter an API, pattern, or type not fully covered in this reference, find the relevant link in llms.txt and fetch that specific page. Common mappings:
+
 - Custom navigators or routers -- fetch "Custom navigators" and "Custom routers" pages
 - Static config API details -- fetch "Static configuration" page
 - Type errors or TypeScript issues -- fetch "TypeScript" page
@@ -78,7 +79,7 @@ Start the migration from the root navigator and work downwards. If the root navi
 A custom navigator uses the `useNavigationBuilder` hook. Before migration, ensure it uses same patterns for its types as official docs:
 
 ```tsx
-import * as React from 'react';
+import * as React from "react";
 import {
   View,
   Text,
@@ -86,7 +87,7 @@ import {
   type StyleProp,
   type ViewStyle,
   StyleSheet,
-} from 'react-native';
+} from "react-native";
 import {
   createNavigatorFactory,
   CommonActions,
@@ -101,7 +102,7 @@ import {
   type TypedNavigator,
   useNavigationBuilder,
   type NavigationProp,
-} from '@react-navigation/native';
+} from "@react-navigation/native";
 
 type MyNavigationConfig = {
   // Additional props accepted by the view
@@ -191,7 +192,7 @@ const MyNavigator = createMyNavigator({
     Home: HomeScreen,
     Profile: {
       screen: ProfileScreen,
-      options: { title: 'My Profile' },
+      options: { title: "My Profile" },
     },
   },
 });
@@ -206,6 +207,7 @@ If it doesn't accept a config object, update it to use the `createNavigatorFacto
 If the custom navigator accepts additional router options beyond the standard set (e.g., `sidebarScreen`, `persistentScreens`, custom layout modes), these options cannot be expressed in the static config object directly. The static config API passes `screens`, `groups`, `screenOptions`, `screenListeners`, and `initialRouteName` to the navigator -- not custom router options.
 
 Options for handling custom router options:
+
 1. **Static values** -- Set them as default values in the navigator implementation itself.
 2. **Dynamic values via `.with()`** -- Pass them as navigator props inside a `.with()` wrapper.
 3. **Keep dynamic** -- If the custom router options must be computed from hooks or parent context that cannot be accessed via `.with()` + `useRoute()`, keep the navigator dynamic.
@@ -230,7 +232,7 @@ function MyStack() {
       <Stack.Screen
         name="Profile"
         component={ProfileScreen}
-        options={{ title: 'My Profile' }}
+        options={{ title: "My Profile" }}
       />
     </Stack.Navigator>
   );
@@ -246,7 +248,7 @@ const MyStack = createNativeStackNavigator({
     Home: HomeScreen,
     Profile: {
       screen: ProfileScreen,
-      options: { title: 'My Profile' },
+      options: { title: "My Profile" },
     },
   },
 });
@@ -268,7 +270,7 @@ const MyStack = createNativeStackNavigator({
       initialParams: {},
       getId: ({ params }) => params.id,
       linking: {
-        path: 'pattern/:id',
+        path: "pattern/:id",
         parse: { id: Number },
         stringify: { id: (value) => String(value) },
         exact: true,
@@ -336,11 +338,11 @@ Before:
 function RootStack() {
   return (
     <Stack.Navigator>
-      <Stack.Group screenOptions={{ headerStyle: { backgroundColor: 'red' } }}>
+      <Stack.Group screenOptions={{ headerStyle: { backgroundColor: "red" } }}>
         <Stack.Screen name="Home" component={HomeScreen} />
         <Stack.Screen name="Profile" component={ProfileScreen} />
       </Stack.Group>
-      <Stack.Group screenOptions={{ presentation: 'modal' }}>
+      <Stack.Group screenOptions={{ presentation: "modal" }}>
         <Stack.Screen name="Settings" component={SettingsScreen} />
       </Stack.Group>
     </Stack.Navigator>
@@ -354,14 +356,14 @@ After:
 const RootStack = createNativeStackNavigator({
   groups: {
     Card: {
-      screenOptions: { headerStyle: { backgroundColor: 'red' } },
+      screenOptions: { headerStyle: { backgroundColor: "red" } },
       screens: {
         Home: HomeScreen,
         Profile: ProfileScreen,
       },
     },
     Modal: {
-      screenOptions: { presentation: 'modal' },
+      screenOptions: { presentation: "modal" },
       screens: {
         Settings: SettingsScreen,
       },
@@ -418,7 +420,7 @@ function App() {
         </>
       )}
       <Stack.Screen
-        navigationKey={isSignedIn ? 'signed-in' : 'signed-out'}
+        navigationKey={isSignedIn ? "signed-in" : "signed-out"}
         name="Help"
         component={HelpScreen}
       />
@@ -538,12 +540,12 @@ function MyStack() {
         <Stack.Screen
           name="Home"
           component={HomeScreen}
-          options={{ title: getSomething('First') }}
+          options={{ title: getSomething("First") }}
         />
         <Stack.Screen
           name="Profile"
           component={ProfileScreen}
-          options={{ title: getSomething('Second') }}
+          options={{ title: getSomething("Second") }}
         />
       </Stack.Navigator>
     </SomeProvider>
@@ -567,13 +569,13 @@ const MyStack = createNativeStackNavigator({
       <Navigator
         screenOptions={({ route }) => {
           switch (route.name) {
-            case 'Home':
+            case "Home":
               return {
-                title: getSomething('First'),
+                title: getSomething("First"),
               };
-            case 'Profile':
+            case "Profile":
               return {
-                title: getSomething('Second'),
+                title: getSomething("Second"),
               };
             default:
               return {};
@@ -629,8 +631,8 @@ If the codebase defines a static map of per-screen options and merges them with 
 
 ```tsx
 const OPTIONS_PER_SCREEN: Record<string, object> = {
-  Settings: { animationTypeForReplace: 'pop' },
-  Profile: { gestureDirection: 'vertical' },
+  Settings: { animationTypeForReplace: "pop" },
+  Profile: { gestureDirection: "vertical" },
 };
 
 const MyStack = createNativeStackNavigator({
@@ -671,7 +673,7 @@ Before:
 After:
 
 ```tsx
-const TokenContext = React.createContext('');
+const TokenContext = React.createContext("");
 
 function ChatScreen() {
   const token = React.useContext(TokenContext);
@@ -827,7 +829,7 @@ Before:
 ```tsx
 <Stack.Screen
   name="Settings"
-  getComponent={() => require('./SettingsScreen').default}
+  getComponent={() => require("./SettingsScreen").default}
 />
 ```
 
@@ -837,8 +839,8 @@ After:
 const MyStack = createNativeStackNavigator({
   screens: {
     Settings: {
-      screen: lazyScreen<typeof import('./SettingsScreen').default>(
-        () => require('./SettingsScreen').default,
+      screen: lazyScreen<typeof import("./SettingsScreen").default>(
+        () => require("./SettingsScreen").default,
       ),
     },
   },
@@ -857,15 +859,15 @@ Before:
 
 ```tsx
 const linking = {
-  prefixes: ['https://example.com'],
+  prefixes: ["https://example.com"],
   config: {
     screens: {
-      Home: '',
+      Home: "",
       Profile: {
-        path: 'user/:id',
+        path: "user/:id",
         parse: { id: Number },
       },
-      Settings: 'settings',
+      Settings: "settings",
     },
   },
 };
@@ -878,12 +880,12 @@ const RootStack = createNativeStackNavigator({
   screens: {
     Home: {
       screen: HomeScreen,
-      linking: '', // explicit root path; omit if this is the first leaf screen or the initialRouteName
+      linking: "", // explicit root path; omit if this is the first leaf screen or the initialRouteName
     },
     Profile: {
       screen: ProfileScreen,
       linking: {
-        path: 'user/:id',
+        path: "user/:id",
         parse: { id: Number },
       },
     },
@@ -918,9 +920,9 @@ Before:
 function ProfileScreen({
   navigation,
   route,
-}: NativeStackScreenProps<MyStackParamList, 'Profile'>) {
+}: NativeStackScreenProps<MyStackParamList, "Profile">) {
   const id = route.params.id;
-  navigation.navigate('Home');
+  navigation.navigate("Home");
 }
 ```
 
@@ -935,7 +937,7 @@ function ProfileScreen({ route }: ProfileScreenProps) {
   const navigation = useNavigation();
   const id = route.params.id;
 
-  navigation.navigate('Home');
+  navigation.navigate("Home");
 }
 ```
 
@@ -948,7 +950,7 @@ type RootStackParamList = StaticParamList<typeof RootStack>;
 
 type ProfileNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
-  'Profile'
+  "Profile"
 >;
 
 const navigation = useNavigation<ProfileNavigationProp>();
@@ -1027,7 +1029,7 @@ const RootStack = createNativeStackNavigator({
     Article: {
       screen: ArticleScreen,
       linking: {
-        path: 'article/:date',
+        path: "article/:date",
         parse: {
           date: (date: string) => new Date(date),
         },
@@ -1057,8 +1059,8 @@ const Stack = createNativeStackNavigator<MyStackParamList>();
 function ArticleScreen({
   navigation,
   route,
-}: NativeStackScreenProps<MyStackParamList, 'Article'>) {
-  return <Button onPress={() => navigation.navigate('Albums')} />;
+}: NativeStackScreenProps<MyStackParamList, "Article">) {
+  return <Button onPress={() => navigation.navigate("Albums")} />;
 }
 
 function AlbumsScreen() {
@@ -1073,7 +1075,7 @@ export function Example() {
           name="Article"
           component={ArticleScreen}
           options={({ route }) => ({ title: route.params.author })}
-          initialParams={{ author: 'Gandalf' }}
+          initialParams={{ author: "Gandalf" }}
         />
         <Stack.Screen name="Albums" component={AlbumsScreen} />
       </Stack.Navigator>
@@ -1090,7 +1092,7 @@ import {
   type StaticParamList,
   type StaticScreenProps,
   useNavigation,
-} from '@react-navigation/native';
+} from "@react-navigation/native";
 
 type ArticleScreenProps = StaticScreenProps<{
   author: string;
@@ -1102,7 +1104,7 @@ function ArticleScreen({ route }: ArticleScreenProps) {
   return (
     <Button
       title={route.params.author}
-      onPress={() => navigation.navigate('Albums')}
+      onPress={() => navigation.navigate("Albums")}
     />
   );
 }
@@ -1116,8 +1118,8 @@ const RootStack = createNativeStackNavigator({
     Article: {
       screen: ArticleScreen,
       options: ({ route }) => ({ title: route.params.author }),
-      initialParams: { author: 'Gandalf' },
-      linking: 'article/:author',
+      initialParams: { author: "Gandalf" },
+      linking: "article/:author",
     },
     Albums: AlbumsScreen,
   },
@@ -1146,11 +1148,11 @@ Before:
 
 ```tsx
 const linking = {
-  prefixes: ['https://example.com', 'example://'],
+  prefixes: ["https://example.com", "example://"],
   config: {
     screens: {
-      Home: '',
-      Profile: 'profile/:id',
+      Home: "",
+      Profile: "profile/:id",
     },
   },
 };
@@ -1167,14 +1169,14 @@ function App() {
 After:
 
 ```tsx
-import { createStaticNavigation } from '@react-navigation/native';
+import { createStaticNavigation } from "@react-navigation/native";
 
 const RootStack = createNativeStackNavigator({
   screens: {
     Home: HomeScreen,
     Profile: {
       screen: ProfileScreen,
-      linking: 'profile/:id',
+      linking: "profile/:id",
     },
   },
 });
@@ -1185,8 +1187,8 @@ function App() {
   return (
     <Navigation
       linking={{
-        prefixes: ['https://example.com', 'example://'],
-        enabled: 'auto',
+        prefixes: ["https://example.com", "example://"],
+        enabled: "auto",
       }}
       theme={MyTheme}
     />
@@ -1223,9 +1225,7 @@ type FeedParamList = {
   Popular: undefined;
 };
 
-type FeedScreenProps = StaticScreenProps<
-  NavigatorScreenParams<FeedParamList>
->;
+type FeedScreenProps = StaticScreenProps<NavigatorScreenParams<FeedParamList>>;
 
 function FeedScreen(_: FeedScreenProps) {
   return (
@@ -1242,10 +1242,10 @@ const RootStack = createNativeStackNavigator({
     Feed: createNativeStackScreen({
       screen: FeedScreen,
       linking: {
-        path: 'feed',
+        path: "feed",
         screens: {
-          Latest: 'latest',
-          Popular: 'popular',
+          Latest: "latest",
+          Popular: "popular",
         },
       },
     }),
@@ -1284,12 +1284,12 @@ type RootStackParamList = {
 const feedScreens = createPathConfigForStaticNavigation(FeedTabs);
 
 const linking = {
-  prefixes: ['https://example.com', 'example://'],
+  prefixes: ["https://example.com", "example://"],
   config: {
     screens: {
-      Home: '',
+      Home: "",
       Feed: {
-        path: 'feed',
+        path: "feed",
         screens: feedScreens,
       },
     },
@@ -1317,7 +1317,7 @@ If the value should resolve later, wrap it in a callback:
 
 ```tsx
 options: () => ({
-  tabBarLabel: translate('tabs:home'),
+  tabBarLabel: translate("tabs:home"),
 });
 ```
 
@@ -1329,70 +1329,4 @@ options: () => ({
 
 ## Review
 
-Run each check against migrated files. Zero matches = pass (unless noted otherwise).
-
-1. **Packages up to date:**
-   ```bash
-   npm ls @react-navigation/core @react-navigation/native 2>/dev/null | grep '@react-navigation'
-   ```
-   Compare against `npm view @react-navigation/core@latest version`. Must be latest 7.x.
-
-2. **No old screen prop types remain:**
-   ```bash
-   grep -rn 'NativeStackScreenProps\|BottomTabScreenProps\|DrawerScreenProps\|MaterialTopTabBarProps' src/ --include='*.ts' --include='*.tsx'
-   ```
-   Zero matches. Use `StaticScreenProps` for params, `useNavigation()` for navigation.
-
-3. **Root type augmentation exists:**
-   ```bash
-   grep -rn 'RootParamList extends' src/ --include='*.ts' --include='*.tsx'
-   ```
-   Exactly one match, next to the root static navigator.
-
-4. **`NavigationContainer` replaced:**
-   ```bash
-   grep -rn 'NavigationContainer' src/ --include='*.ts' --include='*.tsx'
-   ```
-   Zero matches (if root navigator was migrated).
-
-5. **Screen-level linking in place:** Root `linking` contains only container-level settings (`prefixes`, `enabled`). Run:
-   ```bash
-   grep -rn 'config:.*screens\|screens:.*{' src/ --include='*.ts' --include='*.tsx' | grep -i 'linking'
-   ```
-   Zero matches for root-level `linking.config.screens` objects.
-
-6. **Custom paths preserved:** Compare old `linking.config.screens` paths against screen-level `linking`. Every custom path from the old config must exist as an explicit `linking` on the corresponding screen.
-
-7. **Params typed with `StaticScreenProps`:**
-   ```bash
-   grep -rn 'StaticScreenProps' src/ --include='*.ts' --include='*.tsx'
-   ```
-   At least one match per screen that accepts params.
-
-8. **No render callbacks on screens:**
-   ```bash
-   grep -rn 'children.*props.*=>' src/ --include='*.tsx' | grep -i 'screen'
-   ```
-   Zero matches in migrated navigator files.
-
-9. **`getComponent` migrated to `lazyScreen` utility:**
-   ```bash
-   grep -rn 'getComponent' src/ --include='*.ts' --include='*.tsx'
-   ```
-   Zero matches in migrated files. Previous `getComponent` screens now use the synchronous `lazyScreen` wrapper.
-
-10. **No hand-written param lists:**
-    ```bash
-    grep -rn 'ParamList\s*=' src/ --include='*.ts' --include='*.tsx'
-    ```
-    Every match should use `StaticParamList<typeof ...>`, not hand-written types.
-
-11. **No hooks in static config callbacks:**
-    ```bash
-    grep -rn 'options:.*use[A-Z]\|listeners:.*use[A-Z]\|screenOptions:.*use[A-Z]' src/ --include='*.ts' --include='*.tsx'
-    ```
-    Zero matches in static config objects. Hook-derived values must go through `.with()`.
-
-12. **Loading UI outside `<Navigation>`:** Boot/splash screens must not be screens or groups inside the navigator. Verify visually that loading states render before `<Navigation />`.
-
-13. **No circular type references:** Run `npx tsc --noEmit`. Zero errors related to circular references or missing types from deleted shared type files.
+Use the **Definition of Done** checklist in `SKILL.md`. It contains all verification commands with expected outputs. This reference file intentionally does not duplicate those checks to avoid context bloat — both files load together during migration.
