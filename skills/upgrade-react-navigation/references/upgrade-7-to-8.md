@@ -40,7 +40,7 @@ Fetch [llms.txt](https://reactnavigation.org/llms-8.x.txt) for a table of conten
 - Bottom tabs, custom tab bars, tab headers, and image-based tab icons
 - Navigation APIs affected by removed navigator ids, `getParent(id)`, `navigateDeprecated`, `navigationInChildEnabled`, `setParams` with `backBehavior="fullHistory"`, and `getId` behavior changes
 - Removed lifecycle and layout props such as detach/freeze options, `Header` layout props, and `getDefaultHeaderHeight`
-- `getComponent` lazy loading: still supported in 8.x for both static and dynamic config. No migration needed for `getComponent` usage itself, but verify compatibility with any custom wrappers.
+- `getComponent` lazy loading: still supported in 8.x for both static and dynamic config. No migration needed for `getComponent` usage itself. If the codebase wraps `getComponent` in a custom factory, run `npx tsc --noEmit` after upgrading to check for type mismatches in the wrapper's screen type generics.
 - Linking and static navigation config, including `prefixes`, `enabled`, `UNSTABLE_router`, and `UNSTABLE_routeNamesChangeBehavior`
 - Direct `@react-navigation/elements` usage, removed exports, and direct `Header` rendering
 
@@ -133,7 +133,13 @@ const Stack = createNativeStackNavigator({
 
 #### Custom navigators need updated overloads
 
-If the repo defines custom navigators using `useNavigationBuilder` and `createNavigatorFactory`, update them for 8.x:
+If the repo defines custom navigators using `useNavigationBuilder` and `createNavigatorFactory`, update them for 8.x.
+
+**Finding custom navigators through abstraction layers:** Large codebases often wrap `useNavigationBuilder` and `createNavigatorFactory` inside intermediate factory functions (e.g., `createPlatformNavigator` that internally calls `createNavigatorFactory`). These wrappers inherit the same upgrade requirements. Find all layers:
+```bash
+grep -rn 'useNavigationBuilder\|createNavigatorFactory' src/ --include='*.ts' --include='*.tsx'
+```
+Trace each match to its exported API. If file A calls `createNavigatorFactory` and file B imports from file A to create navigators, BOTH files may need updates. Update from the inside out: fix the innermost `useNavigationBuilder` call first, then fix each wrapper layer's generic parameters and type exports.
 
 **`NavigatorID` generic removal:**
 The `NavigatorID` generic type parameter is removed from navigator types. Update `createNavigatorFactory` overloads, `NavigationProp` types, and `DefaultNavigatorOptions` to remove the `NavigatorID` generic (or the `string | undefined` slot it occupied).
@@ -195,19 +201,65 @@ If the codebase has a standalone `NavigationProp` type alias with 3+ generics (e
 If the navigator passes `id` to `useNavigationBuilder` options, remove it. Navigator `id` is no longer supported.
 
 **`useNavigationBuilder` return values:**
-Check if the navigator destructures return values from `useNavigationBuilder`. The `describe` function and `NavigationContent` wrapper may have changed signatures. Fetch the "Custom navigators" page from llms.txt to verify the current return type.
+Check if the navigator destructures return values from `useNavigationBuilder`. The `describe` function and `NavigationContent` wrapper may have changed signatures.
+
+Find all destructured return values:
+```bash
+grep -rn 'useNavigationBuilder' src/ --include='*.ts' --include='*.tsx' -A 3 | grep -E 'const \{|describe|NavigationContent'
+```
+
+After upgrading, compare against the new return type:
+```bash
+cat node_modules/@react-navigation/core/lib/typescript/commonjs/src/useNavigationBuilder.d.ts 2>/dev/null | grep -A 20 'return'
+```
+
+If `describe` or `NavigationContent` signatures changed, `npx tsc --noEmit` will show the exact type mismatch.
 
 **Generic parameter count:** The number of generic type parameters on `useNavigationBuilder` may have changed between 7.x and 8.x. If the codebase passes 6+ generics to `useNavigationBuilder`, compare against the 8.x type definition in `node_modules/@react-navigation/core` after upgrading. Remove or update any generic slots that no longer exist (typically the `NavigatorID` slot).
 
-**Screen options transform (3rd argument):** If the codebase passes a third argument to `useNavigationBuilder` (a screen options transform function, e.g., `convertToWebNavigationOptions`), verify that this overload still exists in 8.x. This is an advanced pattern not covered by the official docs — inspect the `useNavigationBuilder` type definition directly after upgrading.
+**Screen options transform (3rd argument):** If the codebase passes a third argument to `useNavigationBuilder` (a screen options transform function, e.g., `convertToWebNavigationOptions`), check that this overload still exists in 8.x.
+
+Find all 3-argument `useNavigationBuilder` calls:
+```bash
+grep -rn 'useNavigationBuilder' src/ --include='*.ts' --include='*.tsx' -A 5 | grep -B 2 'convertTo\|transform\|, (' 
+```
+
+After upgrading, inspect the type definition:
+```bash
+cat node_modules/@react-navigation/core/lib/typescript/commonjs/src/useNavigationBuilder.d.ts 2>/dev/null | head -40
+```
+
+If the 3rd argument overload was removed, inline the screen options transform into the navigator's render logic.
 
 **Direct `StackView` rendering:**
-If a custom navigator renders `StackView` (or other view components) directly with `state`, `descriptors`, `navigation`, and `describe` props, verify that these props are still accepted. Fetch the relevant navigator's API page from llms.txt to check for prop changes.
+If a custom navigator renders `StackView` (or other view components) directly with `state`, `descriptors`, `navigation`, and `describe` props, check their types after upgrading.
 
-`StackView` is not documented as a public API in the official docs. If the relevant navigator's API page from llms.txt does not document `StackView` props, inspect its TypeScript definition directly after upgrading: check `node_modules/@react-navigation/stack/src/views/Stack/StackView.tsx` (or the compiled `.d.ts`) to verify the prop interface. Pay particular attention to the `describe` prop — it may have changed signature or been renamed.
+Find all direct `StackView` usages:
+```bash
+grep -rn 'StackView' src/ --include='*.ts' --include='*.tsx'
+```
+
+`StackView` is not a documented public API. After upgrading, read its type definition directly:
+```bash
+cat node_modules/@react-navigation/stack/lib/typescript/commonjs/src/views/Stack/StackView.d.ts 2>/dev/null || cat node_modules/@react-navigation/stack/src/views/Stack/StackView.tsx
+```
+
+Compare the prop interface against what your code passes. Pay attention to the `describe` prop — it may have changed signature or been renamed. Run `npx tsc --noEmit` to surface any prop type mismatches.
 
 **Custom router method signatures:**
-If the codebase extends `StackRouter`, `TabRouter`, or other built-in routers, verify that `getStateForAction`, `getInitialState`, `getRehydratedState`, and `RouterConfigOptions` types are unchanged. Fetch the "Custom routers" page from llms.txt for details.
+If the codebase extends `StackRouter`, `TabRouter`, or other built-in routers, check method signatures after upgrading.
+
+Find all custom router extensions:
+```bash
+grep -rn 'extends StackRouter\|extends TabRouter\|extends DrawerRouter\|extends BaseRouter' src/ --include='*.ts' --include='*.tsx'
+```
+
+For each match, compare the overridden method signatures against the 8.x base router types:
+```bash
+cat node_modules/@react-navigation/routers/lib/typescript/commonjs/src/StackRouter.d.ts 2>/dev/null | grep -A 3 'getStateForAction\|getInitialState\|getRehydratedState'
+```
+
+Run `npx tsc --noEmit` after upgrading — type errors on custom routers surface as mismatches in `getStateForAction`, `getInitialState`, `getRehydratedState`, or `RouterConfigOptions`.
 
 When the reference does not provide enough detail for a specific custom navigator pattern, use llms.txt to fetch the relevant official documentation page and derive the changes.
 
@@ -343,7 +395,18 @@ Use the new screen option instead:
 
 Default behavior is now `pause`.
 
-If the codebase implements custom detach or screen-persistence logic (e.g., a custom `dontDetachScreen` route property or a `persistentScreens` navigator option), verify how `inactiveBehavior` interacts with that logic. The new default `pause` behavior may conflict with custom detach decisions. Test that persistent screens remain mounted and non-persistent screens are correctly paused or unmounted.
+If the codebase implements custom detach or screen-persistence logic, check for conflicts with `inactiveBehavior`:
+
+```bash
+grep -rn 'persistentScreens\|dontDetach\|shouldDetach\|freezeNonTop\|keepMounted' src/ --include='*.ts' --include='*.tsx'
+```
+
+For each match, determine how the custom logic interacts with `inactiveBehavior`:
+- If the custom logic **prevents unmounting** certain screens: set `inactiveBehavior: 'none'` on those screens to preserve the behavior. The new default `pause` may freeze effects that persistent screens relied on.
+- If the custom logic **forces unmounting** non-focused screens: set `inactiveBehavior: 'unmount'` (stack/native-stack only) to match the old behavior.
+- If the custom logic reads `detachInactiveScreens` or `freezeOnBlur` from navigator options: update it to read `inactiveBehavior` instead and map the values accordingly.
+
+After updating, run the app and verify: (1) persistent screens remain interactive when unfocused, (2) non-persistent screens are correctly paused/unmounted, (3) effects on persistent screens (timers, subscriptions) continue running.
 
 #### Rename and remove the affected navigator options
 

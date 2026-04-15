@@ -28,15 +28,27 @@ Fetch [llms.txt](https://reactnavigation.org/llms.txt) for a table of contents o
 
 ## Workflow
 
-### Step 0: Check the parent navigator first
+### Step 0: Check the parent navigator and navigator origin
 
-**Before classifying or editing any navigator, check whether its parent navigator is static or dynamic.** This is a prerequisite gate — do not skip it.
+**Before classifying or editing any navigator, run these two prerequisite checks.** Do not skip them.
+
+**Check A — Parent navigator:**
 
 1. Find the parent navigator that renders this navigator as a `<Screen>` component.
 2. If the parent uses JSX-based dynamic config (`<Stack.Navigator>` with `<Stack.Screen>` children, hooks for screenOptions, conditional rendering via JSX expressions), it is dynamic.
 3. **If the parent is dynamic, classify this navigator as "keep dynamic"** unless the user explicitly wants to migrate bottom-up. Static navigators nested inside dynamic ones lose automatic linking and TypeScript type inference at the boundary (see "Mixing Static and Dynamic APIs" below).
 4. If the user wants to proceed anyway, use the "Dynamic root navigator, static nested navigator" pattern: call `.getComponent()` on the static child and `createPathConfigForStaticNavigation()` for linking.
-5. If you are migrating the root navigator, this step does not apply — proceed to classification.
+5. If you are migrating the root navigator, skip Check A — proceed to Check B.
+
+**Check B — Navigator origin:**
+
+1. Check if the navigator is produced by a **factory function** (a function that takes a screen list or config and returns a navigator component). Run:
+   ```bash
+   grep -rn 'function create.*Navigator\|const create.*Navigator' src/ --include='*.ts' --include='*.tsx'
+   ```
+2. If the navigator comes from a factory that generates **10+ navigators**, default to "keep dynamic" unless the user explicitly requests migration. Migrating factory-generated navigators requires duplicating the factory's shared wrapper logic (hooks, View wrappers, accessibility attributes) into individual `.with()` calls, which scales poorly and is error-prone.
+3. If the factory generates **fewer than 10 navigators**, it is a candidate for the "Migrating navigator factories" pattern (see below). Proceed to classification.
+4. If the navigator is NOT factory-generated, proceed to classification.
 
 ### Classify the navigator
 
@@ -1317,16 +1329,70 @@ options: () => ({
 
 ## Review
 
-1. All `@react-navigation/*` packages were updated to the latest published 7.x versions before migration.
-2. No `NativeStackScreenProps`, `BottomTabScreenProps`, or custom screen-prop aliases remain. Use `useNavigation()` for access, the screen `route` prop when available, and `StaticScreenProps` for params.
-3. `RootParamList` augmentation in `ReactNavigation` lives next to the root static navigator.
-4. `createStaticNavigation` replaces `NavigationContainer`.
-5. Root `linking` contains container-level settings such as `prefixes` and `enabled`. Screen paths live in screen-level `linking`.
-6. Linking config is present only where custom paths or params are required. Defaults are kebab-case.
-7. Every screen with params uses `StaticScreenProps`. Screen-level `linking` is used for URL parsing and serialization.
-8. No render callbacks remain on screens. Extra props use React context and wrappers use `layout`.
-9. Any previous `getComponent` screens now use custom utility
-10. No hand-written param lists remain unless derived via `StaticParamList`.
-11. No hooks are called directly in `screenOptions`, `options`, or `listeners` callbacks.
-12. Loading or boot UI lives outside `<Navigation>`.
-13. No circular type references or obsolete shared type files remain from the old dynamic setup.
+Run each check against migrated files. Zero matches = pass (unless noted otherwise).
+
+1. **Packages up to date:**
+   ```bash
+   npm ls @react-navigation/core @react-navigation/native 2>/dev/null | grep '@react-navigation'
+   ```
+   Compare against `npm view @react-navigation/core@latest version`. Must be latest 7.x.
+
+2. **No old screen prop types remain:**
+   ```bash
+   grep -rn 'NativeStackScreenProps\|BottomTabScreenProps\|DrawerScreenProps\|MaterialTopTabBarProps' src/ --include='*.ts' --include='*.tsx'
+   ```
+   Zero matches. Use `StaticScreenProps` for params, `useNavigation()` for navigation.
+
+3. **Root type augmentation exists:**
+   ```bash
+   grep -rn 'RootParamList extends' src/ --include='*.ts' --include='*.tsx'
+   ```
+   Exactly one match, next to the root static navigator.
+
+4. **`NavigationContainer` replaced:**
+   ```bash
+   grep -rn 'NavigationContainer' src/ --include='*.ts' --include='*.tsx'
+   ```
+   Zero matches (if root navigator was migrated).
+
+5. **Screen-level linking in place:** Root `linking` contains only container-level settings (`prefixes`, `enabled`). Run:
+   ```bash
+   grep -rn 'config:.*screens\|screens:.*{' src/ --include='*.ts' --include='*.tsx' | grep -i 'linking'
+   ```
+   Zero matches for root-level `linking.config.screens` objects.
+
+6. **Custom paths preserved:** Compare old `linking.config.screens` paths against screen-level `linking`. Every custom path from the old config must exist as an explicit `linking` on the corresponding screen.
+
+7. **Params typed with `StaticScreenProps`:**
+   ```bash
+   grep -rn 'StaticScreenProps' src/ --include='*.ts' --include='*.tsx'
+   ```
+   At least one match per screen that accepts params.
+
+8. **No render callbacks on screens:**
+   ```bash
+   grep -rn 'children.*props.*=>' src/ --include='*.tsx' | grep -i 'screen'
+   ```
+   Zero matches in migrated navigator files.
+
+9. **`getComponent` migrated to `lazyScreen` utility:**
+   ```bash
+   grep -rn 'getComponent' src/ --include='*.ts' --include='*.tsx'
+   ```
+   Zero matches in migrated files. Previous `getComponent` screens now use the synchronous `lazyScreen` wrapper.
+
+10. **No hand-written param lists:**
+    ```bash
+    grep -rn 'ParamList\s*=' src/ --include='*.ts' --include='*.tsx'
+    ```
+    Every match should use `StaticParamList<typeof ...>`, not hand-written types.
+
+11. **No hooks in static config callbacks:**
+    ```bash
+    grep -rn 'options:.*use[A-Z]\|listeners:.*use[A-Z]\|screenOptions:.*use[A-Z]' src/ --include='*.ts' --include='*.tsx'
+    ```
+    Zero matches in static config objects. Hook-derived values must go through `.with()`.
+
+12. **Loading UI outside `<Navigation>`:** Boot/splash screens must not be screens or groups inside the navigator. Verify visually that loading states render before `<Navigation />`.
+
+13. **No circular type references:** Run `npx tsc --noEmit`. Zero errors related to circular references or missing types from deleted shared type files.
