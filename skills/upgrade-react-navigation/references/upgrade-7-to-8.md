@@ -134,7 +134,7 @@ const Stack = createNativeStackNavigator({
 
 #### Custom navigators need updated types
 
-If the repo defines a custom navigator, update its `createNavigatorFactory` overloads and any local navigator wrapper typings. There should now be 2 overloads for `createXNavigator`, and a new `createXScreen` helper for static screen configs.
+If the repo defines a custom navigator, update its `createNavigatorFactory` call and any local navigator wrapper typings. Define the type bag as an interface extending `NavigatorTypeBagBase` (use `this['ParamList']` for self-reference, and the new `ActionHelpers` field for action helpers like `TabActionHelpers`), then pass it as a type parameter to `createNavigatorFactory`. Add a `createXScreen` helper for static screen configs using the new `createScreenFactory`.
 
 The new shape should look like this:
 
@@ -150,20 +150,15 @@ import {
 } from 'react-native';
 import {
   createNavigatorFactory,
+  createScreenFactory,
   CommonActions,
   type DefaultNavigatorOptions,
   type NavigatorTypeBagBase,
   type ParamListBase,
-  type StaticConfig,
-  type StaticParamList,
-  type StaticScreenConfig,
-  type StaticScreenConfigLinking,
-  type StaticScreenConfigScreen,
   type TabActionHelpers,
   type TabNavigationState,
   TabRouter,
   type TabRouterOptions,
-  type TypedNavigator,
   useNavigationBuilder,
   type NavigationProp,
 } from '@react-navigation/native';
@@ -225,46 +220,20 @@ function TabNavigator({ tabBarStyle, contentStyle, ...rest }: Props) {
 }
 
 // Types required for type-checking the navigator
-type MyTabTypeBag<ParamList extends {}> = {
-  ParamList: ParamList;
-  State: TabNavigationState<ParamList>;
+interface MyTabTypeBag extends NavigatorTypeBagBase {
+  State: TabNavigationState<this['ParamList']>;
   ScreenOptions: MyNavigationOptions;
   EventMap: MyNavigationEventMap;
-  NavigationList: {
-    [RouteName in keyof ParamList]: MyNavigationProp<ParamList, RouteName>;
-  };
+  ActionHelpers: TabActionHelpers<this['ParamList']>;
   Navigator: typeof TabNavigator;
-};
-
-// The factory function with overloads for static and dynamic configuration
-export function createMyNavigator<
-  const ParamList extends ParamListBase,
->(): TypedNavigator<MyTabTypeBag<ParamList>, undefined>;
-export function createMyNavigator<
-  const Config extends StaticConfig<MyTabTypeBag<ParamListBase>>,
->(
-  config: Config,
-): TypedNavigator<MyTabTypeBag<StaticParamList<{ config: Config }>>, Config>;
-export function createMyNavigator(config?: unknown) {
-  return createNavigatorFactory(TabNavigator)(config);
 }
 
-// Helper function for creating screen config with proper types for static configuration
-export function createMyScreen<
-  const Linking extends StaticScreenConfigLinking,
-  const Screen extends StaticScreenConfigScreen,
->(
-  config: StaticScreenConfig<
-    Linking,
-    Screen,
-    TabNavigationState<ParamListBase>,
-    MyNavigationOptions,
-    MyNavigationEventMap,
-    MyNavigationProp<ParamListBase>
-  >,
-) {
-  return config;
-}
+// The factory function for creating the navigator
+export const createMyNavigator =
+  createNavigatorFactory<MyTabTypeBag>(TabNavigator);
+
+// Helper for creating screen config with proper types for static configuration
+export const createMyScreen = createScreenFactory<MyTabTypeBag>();
 ```
 
 The `NavigatorID` type parameter and `id` prop are no longer supported and need to be removed.
