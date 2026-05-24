@@ -220,6 +220,38 @@ Nested static navigator: `ScreenName: AnotherStaticNavigator`
 
 All props on `<Navigator>` such as `initialRouteName`, `screenOptions` etc. become properties on the config object passed to `createXNavigator`. Props on `<Screen>` become properties on the screen config object. If a screen doesn't need a config object, use the shorthand form.
 
+### Replace `navigation` prop with `useNavigation`
+
+Screens no longer receive `navigation` as a prop in the static API. Replace prop destructuring with the `useNavigation()` hook in every screen component reached by the migration. The `route` prop is still passed.
+
+Before:
+
+```tsx
+function HomeScreen({ navigation }) {
+  return (
+    <Button
+      title="Go to profile"
+      onPress={() => navigation.navigate('Profile')}
+    />
+  );
+}
+```
+
+After:
+
+```tsx
+function HomeScreen() {
+  const navigation = useNavigation();
+
+  return (
+    <Button
+      title="Go to profile"
+      onPress={() => navigation.navigate('Profile')}
+    />
+  );
+}
+```
+
 ### Convert nested navigators
 
 Nested dynamic navigators rendered as components become nested config objects.
