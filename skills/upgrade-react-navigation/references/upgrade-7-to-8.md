@@ -7,19 +7,18 @@ Upgrade React Navigation to 8.x and handle the required breaking changes.
 ## Minimum requirements
 
 - Upgrade all `@react-navigation/*` packages together.
-- Verify the official minimum versions:
+- Verify the official minimum versions and update if needed:
   - `react-native` `>= 0.83`
   - `expo` `>= 55` if you use Expo
   - `typescript` `>= 5.9.2` if you use TypeScript
-  - `react-native-screens` `>= 4.20.0`
+  - `react-native-screens` `>= 4.25.0`
   - `react-native-safe-area-context` `>= 5.5.0`
   - `react-native-reanimated` `>= 4.0.0`
+  - `react-native-pager-view` `>= 8.0.0`
   - `react-native-web` `>= 0.21.0` if the app targets Web
-- Install or update these required packages:
+- Install these required packages:
   - `react-native-screens`
   - `react-native-safe-area-context`
-  - `react-native-reanimated`
-  - `react-native-pager-view` to the latest compatible version
   - `@callstack/liquid-glass`
 - If the repo uses Expo, ensure development builds are used. Verify that either `expo-dev-client` is installed or the start workflow uses `expo start --dev-client`.
 - If the repo uses TypeScript, set `moduleResolution: 'bundler'` and enable either `strict: true` or `strictNullChecks: true`.
@@ -314,6 +313,26 @@ After:
 navigation.pushParams({ filter: 'new' });
 ```
 
+#### Stack state shape changed
+
+`state.preloadedRoutes` is removed. `state.routes` now contains both active and preloaded routes, with preloaded routes at `state.routes.slice(state.index + 1)`.
+
+Update code that reads the focused route from the end of the array, or that reads `state.preloadedRoutes` directly (e.g. in `useNavigationState`).
+
+Before:
+
+```tsx
+const focused = state.routes[state.routes.length - 1];
+const preloaded = state.preloadedRoutes;
+```
+
+After:
+
+```tsx
+const focused = state.routes[state.index];
+const preloaded = state.routes.slice(state.index + 1);
+```
+
 #### `getId` no longer reorders the stack
 
 In 7.x, navigating to an existing route with the same `getId` could move that route instance to the top of the stack. In 8.x, it no longer reorders the stack that way.
@@ -348,9 +367,10 @@ If the repo manually annotates React Navigation icon props, header props, or nav
 
 Check these cases:
 
-- `layout` on `Header`
-- `titleLayout` and `screenLayout` on `HeaderBackButton`
+- `layout` on `Header` (both `@react-navigation/elements` and stack)
+- `titleLayout`, `screenLayout`, and `onLabelLayout` on `HeaderBackButton`
 - `layouts.title` and `layouts.leftLabel` in stack `headerStyleInterpolator`
+- `layout` on bottom tab bar props
 - `layout` in `react-native-tab-view`
 - `layout` in `react-native-drawer-layout`
 
@@ -378,6 +398,7 @@ Apply these direct updates:
 
 - `headerSearchBarOptions.onChangeText` becomes `onChange`
 - `headerBackImage` and `headerBackImageSource` become `headerBackIcon`
+- `headerLargeTitle` becomes `headerLargeTitleEnabled`
 - `gestureResponseDistance` in stack now takes a `number`
 - `overlayColor` in drawer becomes `overlayStyle`
 
@@ -470,6 +491,8 @@ Replace:
 - `MissingIcon` with local placeholder icon code
 - `Assets` by removing the preloading code
 
+Some of these exports are still available from `@react-navigation/elements/internal` as an unstable escape hatch if a direct replacement is not feasible.
+
 #### Direct `Header` usage
 
 If the repo renders `Header` directly:
@@ -509,6 +532,7 @@ getDefaultHeaderHeight({
 
 - Code previously deferred with `InteractionManager.runAfterInteractions` now runs from navigator `transitionEnd` events instead of the old global interaction queue behavior.
 - Navigating to an existing route with the same `getId` no longer moves that route instance to the top of the stack. If the previous flow relied on going back to the existing route instead of pushing a new one, it now needs `{ pop: true }`.
+- Calling `preload()` for the same screen now updates that screen's params instead of creating a separate preloaded instance. If a flow relied on preloading multiple instances of the same screen, set the `getId` prop on the screen so each call with a different id creates a distinct preloaded instance.
 - Previously, detach and freeze options could keep unfocused screens mounted or keep their effects alive. Now `inactiveBehavior: 'pause'` can clean up effects or background work when a screen becomes unfocused.
 - Previously, native stack Android system bar options could customize or disable those bars through React Navigation. Now those options are removed, so apps must keep edge-to-edge enabled and handle system bars outside React Navigation.
 
