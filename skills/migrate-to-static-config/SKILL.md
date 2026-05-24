@@ -59,4 +59,4 @@ Check `@react-navigation/native` in `package.json` first.
 - If `7.x`, read [`references/react-navigation-7.md`](./references/react-navigation-7.md)
 - If `8.x`, read [`references/react-navigation-8.md`](./references/react-navigation-8.md)
 
-Load exactly one reference file unless explicitly comparing versions.
+Load the main reference file for the matching version. The main reference points to companion files (custom navigators, render callbacks, `getComponent`, mixing APIs) — load each only when the matching pattern is present in the codebase being migrated.
