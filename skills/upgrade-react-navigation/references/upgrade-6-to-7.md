@@ -17,7 +17,7 @@ Upgrade React Navigation to 7.x and handle the required breaking changes.
 
 ## Official reference
 
-Fetch [llms.txt](https://reactnavigation.org/llms.x.txt) for a list of documentation links. During the migration, refer to the official documentation for API reference for the latest React Navigation 7.x versions.
+Fetch [llms.txt](https://reactnavigation.org/llms.txt) for a list of documentation links. During the migration, refer to the official documentation for API reference for the latest React Navigation 7.x versions.
 
 ## Areas to review
 

@@ -2,6 +2,27 @@
 
 Use this file only when `@react-navigation/native` is on `8.x`.
 
+## Contents
+
+- Official reference
+- Prerequisites
+- Structure
+- Workflow
+  - Identify static candidates
+  - Identify custom navigators
+  - Convert navigator JSX to static config
+  - Replace `navigation` prop with `useNavigation`
+  - Convert nested navigators
+  - Convert groups
+  - Convert auth flows
+  - Use `.with()` for wrappers, providers, and dynamic navigator props
+  - Migrate screen-level linking
+  - Update types
+  - Replace the root container
+- Mixing Static and Dynamic APIs
+- Limitations
+- Review
+
 ## Official reference
 
 Fetch [llms.txt](https://reactnavigation.org/llms-8.x.txt) for a list of documentation links. During the migration, find the relevant link based on the topic and refer to the official docs when needed.
@@ -10,7 +31,7 @@ Fetch [llms.txt](https://reactnavigation.org/llms-8.x.txt) for a list of documen
 
 - The project is using React Navigation 8.x.
 - Before migrating any navigator, ensure `@react-navigation/*` packages in `package.json` are updated to the latest published 8.x version:
-  - Run `npm view package-name@next version` for each `@react-navigation` package in `package.json` to check the latest version, for example `npm view @react-navigation/native@next version`.
+  - Run `npm view package-name@next version` for each `@react-navigation` package in `package.json` to check the latest 8.x version, for example `npm view @react-navigation/native@next version`.
   - If the versions are not up-to-date, stop and ask whether to update them.
   - Once confirmed, update every installed `@react-navigation/*` package, not only `@react-navigation/native`, and install them.
   - Do not proceed with the migration unless versions are updated.
@@ -111,12 +132,12 @@ For screen options that depend on the navigation theme, keep them as screen-leve
 ```tsx
 const MyStack = createNativeStackNavigator({
   screens: {
-    Home: {
+    Home: createNativeStackScreen({
       screen: HomeScreen,
       options: ({ theme }) => ({
         headerTintColor: theme.colors.primary,
       }),
-    },
+    }),
   },
 });
 ```
@@ -513,7 +534,7 @@ const RootStack = createNativeStackNavigator({
 
 Linking paths are auto-generated for leaf screens using kebab-case of the screen name. The first leaf screen, or the `initialRouteName` if set, gets the path `/` unless you set an explicit empty path on another screen.
 
-To control auto-generated linking, pass `enabled` on the root `linking` prop: `enabled: true` generates paths only for screens with explicit `linking`, and `enabled: false` disables linking entirely.
+To control auto-generated linking, pass `enabled` on the root `linking` prop. The default is `enabled: 'auto'`, which generates paths for all leaf screens. Pass `enabled: true` to turn off automatic path generation and define paths manually only for screens with explicit `linking`, or `enabled: false` to disable linking entirely.
 
 If a screen previously had a custom path such as `linking: 'contacts'` and you remove it, the auto path becomes kebab-case of the screen name such as `TabContacts` to `tab-contacts`. This breaks existing URLs and deep links. Keep explicit `linking` when you need to preserve existing paths.
 

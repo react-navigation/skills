@@ -34,11 +34,11 @@ After:
 ```tsx
 const MyStack = createNativeStackNavigator({
   screens: {
-    Settings: {
+    Settings: createNativeStackScreen({
       screen: lazyScreen<typeof import('./SettingsScreen').default>(
         () => require('./SettingsScreen').default,
       ),
-    },
+    }),
   },
 });
 ```

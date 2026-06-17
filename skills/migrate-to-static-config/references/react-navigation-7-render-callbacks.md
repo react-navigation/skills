@@ -4,6 +4,15 @@ Use this file only when `<X.Screen>` elements use a render-callback child (e.g. 
 
 Static config doesn't support render callbacks on screens.
 
+## Contents
+
+- Additional screen props
+- Wrappers
+- Refs
+- Combining patterns
+
+## Additional screen props
+
 For additional props passed to the screen component, move the data to React context and provide it via `.with()`.
 
 Passing additional props via context:
@@ -42,6 +51,8 @@ const MyStack = createNativeStackNavigator({
 });
 ```
 
+## Wrappers
+
 For wrappers around the screen component, move the wrapper to the screen's `layout`.
 
 Before:
@@ -61,15 +72,17 @@ After:
 ```tsx
 const MyStack = createNativeStackNavigator({
   screens: {
-    Profile: {
+    Profile: createNativeStackScreen({
       screen: ProfileScreen,
       layout: ({ children }) => <SomeWrapper>{children}</SomeWrapper>,
-    },
+    }),
   },
 });
 ```
 
-For refs passed to the screen component, use context and wrap the screen in a component that forwards the ref.
+## Refs
+
+For refs passed to the screen component, use context and wrap the screen in an intermediate component.
 
 Before:
 
@@ -82,18 +95,20 @@ Before:
 After:
 
 ```tsx
+const ProfileScreenWithRef = () => {
+  const profileRef = React.useContext(ProfileRefContext);
+
+  return <ProfileScreen ref={profileRef} />;
+};
+
 const MyStack = createNativeStackNavigator({
   screens: {
-    Profile: {
-      screen: () => {
-        const profileRef = React.useContext(ProfileRefContext);
-
-        return <ProfileScreen ref={profileRef} />;
-      },
-    },
+    Profile: createNativeStackScreen({
+      screen: ProfileScreenWithRef,
+    }),
   },
 }).with(({ Navigator }) => {
-  const profileRef = React.useRef();
+  const profileRef = React.useRef(null);
 
   return (
     <ProfileRefContext.Provider value={profileRef}>
@@ -102,5 +117,7 @@ const MyStack = createNativeStackNavigator({
   );
 });
 ```
+
+## Combining patterns
 
 If multiple of these patterns are used on the same screen, use appropriate combinations of context and layout.

@@ -2,6 +2,14 @@
 
 Use this file only when the codebase contains custom navigators built with `useNavigationBuilder` or `createNavigatorFactory`.
 
+## Contents
+
+- Check navigator factory types
+- Static config usage
+- Migration decision
+
+## Check navigator factory types
+
 A custom navigator uses the `useNavigationBuilder` hook. Before migration, ensure it uses same patterns for its types as official docs:
 
 ```tsx
@@ -110,6 +118,8 @@ export function createMyNavigator<
 }
 ```
 
+## Static config usage
+
 Then, it can use the same static config API as official navigators:
 
 ```tsx
@@ -123,6 +133,8 @@ const MyNavigator = createMyNavigator({
   },
 });
 ```
+
+## Migration decision
 
 The actual implementation of the navigator is not relevant to the migration. The only relevant part is the navigator function (e.g. `createMyNavigator`) and whether it accepts configuration object.
 

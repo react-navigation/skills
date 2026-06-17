@@ -4,6 +4,15 @@ Use this file only when `<X.Screen>` elements use a render-callback child (e.g. 
 
 Static config doesn't support render callbacks on screens.
 
+## Contents
+
+- Additional screen props
+- Wrappers
+- Refs
+- Combining patterns
+
+## Additional screen props
+
 For additional props passed to the screen component, move the data to React context and provide it via `.with()`.
 
 Passing additional props via context:
@@ -42,6 +51,8 @@ const MyStack = createNativeStackNavigator({
 });
 ```
 
+## Wrappers
+
 For wrappers around the screen component, move the wrapper to the screen's `layout`.
 
 Before:
@@ -69,6 +80,8 @@ const MyStack = createNativeStackNavigator({
 });
 ```
 
+## Refs
+
 For refs passed to the screen component, use context and wrap the screen in an intermediate component.
 
 Before:
@@ -95,7 +108,7 @@ const MyStack = createNativeStackNavigator({
     }),
   },
 }).with(({ Navigator }) => {
-  const profileRef = React.useRef();
+  const profileRef = React.useRef(null);
 
   return (
     <ProfileRefContext.Provider value={profileRef}>
@@ -104,5 +117,7 @@ const MyStack = createNativeStackNavigator({
   );
 });
 ```
+
+## Combining patterns
 
 If multiple of these patterns are used on the same screen, use appropriate combinations of context and layout.
