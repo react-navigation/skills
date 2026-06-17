@@ -104,6 +104,23 @@ Nested static navigator: `ScreenName: AnotherStaticNavigator`
 
 All props on `<Navigator>` such as `initialRouteName`, `screenOptions` etc. become properties on the config object passed to `createXNavigator`. Props on `<Screen>` become properties on the screen config object. If a screen doesn't need a config object, use the shorthand form.
 
+#### Use options callback for theme-dependent options
+
+For screen options that depend on the navigation theme, keep them as screen-level `options` callbacks. The callback receives `theme`, so avoid using `useTheme()`.
+
+```tsx
+const MyStack = createNativeStackNavigator({
+  screens: {
+    Home: {
+      screen: HomeScreen,
+      options: ({ theme }) => ({
+        headerTintColor: theme.colors.primary,
+      }),
+    },
+  },
+});
+```
+
 ### Replace `navigation` prop with `useNavigation`
 
 Screens no longer receive `navigation` as a prop in the static API. Replace prop destructuring with the `useNavigation()` hook in every screen component reached by the migration. The `route` prop is still passed.
@@ -781,7 +798,7 @@ options: () => ({
 
 ## Limitations
 
-- Cannot use React hooks such as `useTheme()` directly in `options` or `listeners` callbacks. Use callback arguments such as `theme` instead. `React.use()` (React 19+) can read context in `options` callbacks but may trigger ESLint warnings.
+- Cannot use React hooks such as `useTheme()` directly in `options` or `listeners` callbacks. Use callback arguments such as `theme` instead.
 - The screen list is static. Screens cannot be added or removed at runtime. Use `if` hooks for conditional rendering.
 - No render callbacks on screens. Move extra props to React context and wrappers to `layout`.
 
@@ -797,7 +814,8 @@ options: () => ({
 8. No render callbacks remain on screens. Extra props use React context and wrappers use `layout`.
 9. Any previous `getComponent` screens now use custom utility
 10. No hand-written param lists remain unless they are required at a static/dynamic boundary or derived via `StaticParamList`.
-11. No hooks are called directly in `screenOptions`, `options`, or `listeners` callbacks.
-12. Loading or boot UI lives outside `<Navigation>`.
-13. No circular type references or obsolete shared type files remain from the old dynamic setup.
-14. If static and dynamic navigators are mixed, linking and types are handled manually at the boundary.
+11. No hooks are called directly in `screenOptions`, `options`, or `listeners` callbacks
+12. Theme-dependent `options` use the `theme` callback argument instead of `.with()` plus `useTheme()`.
+13. Loading or boot UI lives outside `<Navigation>`.
+14. No circular type references or obsolete shared type files remain from the old dynamic setup.
+15. If static and dynamic navigators are mixed, linking and types are handled manually at the boundary.
